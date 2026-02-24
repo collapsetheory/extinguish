@@ -1,0 +1,63 @@
+{
+  "name": "extinguish",
+  "version": "0.1.0",
+  "description": "Signal-powered utilities for Lit and client-side state flows.",
+  "type": "module",
+  "license": "MIT",
+  "author": "collapse-theory",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/collapse-theory/extinguish.git"
+  },
+  "homepage": "https://github.com/collapse-theory/extinguish#readme",
+  "bugs": {
+    "url": "https://github.com/collapse-theory/extinguish/issues"
+  },
+  "keywords": [
+    "signals",
+    "lit",
+    "router",
+    "resource",
+    "web-components"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "check": "deno check src/index.ts",
+    "lint": "deno lint && tsc --noEmit",
+    "test": "deno test",
+    "prepublishOnly": "npm run build && npm run check && npm run lint && npm run test"
+  },
+  "dependencies": {
+    "@preact/signals-core": "^1.12.1",
+    "lit-html": "^3.3.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
