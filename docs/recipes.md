@@ -105,7 +105,8 @@ const dispose = enhance("counter", () =>
 HTML:
 
 ```html
-<div id="counter"></div>
+<div class="counter"></div>
+<div class="counter"></div>
 ```
 
 ## 6) Batched UI work with `transition`

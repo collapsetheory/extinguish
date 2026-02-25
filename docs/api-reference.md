@@ -184,27 +184,27 @@ function virtual<T extends Record<string, unknown>>(
 - Throws if used in attribute/property/event part positions.
 - Cleans up effect on disconnect and restarts on reconnect.
 
-## `enhance(key, fn)`
+## `enhance(className, fn)`
 
-Mounts a signal effect to an element by `id`, with auto-mount/unmount via
+Mounts a signal effect to elements by `class`, with auto-mount/unmount via
 `MutationObserver`.
 
 ### Signature
 
 ```ts
 function enhance(
-  key: string,
+  className: string,
   fn: (this: HTMLElement, element: HTMLElement) => unknown | void,
 ): () => void;
 ```
 
 ### Behavior
 
-- Immediately attempts to mount on `document.querySelector(#key)`.
+- Immediately attempts to mount on all elements with that class.
 - If `fn` returns a template/result, it is rendered with `lit-html`.
-- Tracks added/removed nodes with matching IDs and mounts/unmounts
+- Tracks added/removed nodes with matching classes and mounts/unmounts
   automatically.
-- Returns disposer that unregisters and unmounts current element.
+- Returns disposer that unregisters and unmounts currently matched elements.
 
 ## `transition(callback, timeoutMs?)` and `pending`
 

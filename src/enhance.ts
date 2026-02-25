@@ -36,14 +36,25 @@ function unmount(el: HTMLElement | null) {
   render(null, el);
 }
 
+function forEachByClassName(
+  className: string,
+  callback: (el: HTMLElement) => void,
+) {
+  const nodes = document.getElementsByClassName(className);
+  for (const node of nodes) {
+    if (!(node instanceof HTMLElement)) continue;
+    callback(node);
+  }
+}
+
 function walk(node: Node, onElement: (el: HTMLElement) => void) {
   if (!(node instanceof Element)) return;
 
-  if (node instanceof HTMLElement && node.id) {
+  if (node instanceof HTMLElement) {
     onElement(node);
   }
 
-  node.querySelectorAll<HTMLElement>("[id]").forEach(onElement);
+  node.querySelectorAll<HTMLElement>("*").forEach(onElement);
 }
 
 function ensureObserver() {
@@ -53,10 +64,10 @@ function ensureObserver() {
     records.forEach((record) => {
       record.addedNodes.forEach((node: Node) =>
         walk(node, (el) => {
-          if (!el.id) return;
-          const fn = registry.get(el.id);
-          if (!fn) return;
-          mount(el, fn);
+          registry.forEach((fn, className) => {
+            if (!el.classList.contains(className)) return;
+            mount(el, fn);
+          });
         })
       );
       record.removedNodes.forEach((node: Node) => walk(node, unmount));
@@ -67,8 +78,8 @@ function ensureObserver() {
 }
 
 /**
- * Attaches a reactive effect to an element id and keeps it mounted as the DOM
- * changes.
+ * Attaches a reactive effect to all elements with a class and keeps mounts in
+ * sync as the DOM changes.
  *
  * `fn` reruns whenever any signal read inside it changes.
  * `fn` executes with `this === el` and also receives `el` as first argument.
@@ -76,15 +87,16 @@ function ensureObserver() {
  * If `fn` returns a non-`undefined` value, it is rendered into the element via
  * `lit-html`.
  *
- * Returns a disposer that unregisters and unmounts the current element.
+ * Returns a disposer that unregisters and unmounts all currently matched
+ * elements.
  */
-export function enhance(key: string, fn: EffectCallback): () => void {
-  registry.set(key, fn);
-  mount(document.querySelector<HTMLElement>(`#${key}`), fn);
+export function enhance(className: string, fn: EffectCallback): () => void {
+  registry.set(className, fn);
+  forEachByClassName(className, (el) => mount(el, fn));
   ensureObserver();
 
   return () => {
-    registry.delete(key);
-    unmount(document.querySelector<HTMLElement>(`#${key}`));
+    registry.delete(className);
+    forEachByClassName(className, (el) => unmount(el));
   };
 }

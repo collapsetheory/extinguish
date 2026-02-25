@@ -35,7 +35,7 @@ import { matchPath, resource } from "extinguish";
 ## Exports
 
 - `boundary(options)`
-- `enhance(key, fn)`
+- `enhance(className, fn)`
 - `lazy(loader, options?)`
 - `resource(loader, options?)`
 - `defineRoute(name, pattern, meta?)`

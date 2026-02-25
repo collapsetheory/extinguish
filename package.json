@@ -1,6 +1,6 @@
 {
   "name": "extinguish",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Signal-powered utilities for Lit and client-side state flows.",
   "type": "module",
   "license": "MIT",
