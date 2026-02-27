@@ -1,16 +1,16 @@
 import { effect } from "@preact/signals-core";
 import { render } from "lit-html";
 
-type EffectCallback = (
-  this: HTMLElement,
-  element: HTMLElement,
+type EffectCallback<T extends HTMLElement = HTMLElement> = (
+  this: T,
+  element: T,
 ) => unknown | void;
 
-const registry = new Map<string, EffectCallback>();
+const registry = new Map<string, EffectCallback<HTMLElement>>();
 const mounted = new WeakMap<HTMLElement, () => void>();
 let observer: MutationObserver | undefined;
 
-function mount(el: HTMLElement | null, fn: EffectCallback) {
+function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
   if (!el) return;
   const existing = mounted.get(el);
   if (existing) {
@@ -90,9 +90,12 @@ function ensureObserver() {
  * Returns a disposer that unregisters and unmounts all currently matched
  * elements.
  */
-export function enhance(className: string, fn: EffectCallback): () => void {
-  registry.set(className, fn);
-  forEachByClassName(className, (el) => mount(el, fn));
+export function enhance<T extends HTMLElement = HTMLElement>(
+  className: string,
+  fn: EffectCallback<T>,
+): () => void {
+  registry.set(className, fn as EffectCallback<HTMLElement>);
+  forEachByClassName(className, (el) => mount(el as T, fn));
   ensureObserver();
 
   return () => {
