@@ -1,8 +1,17 @@
-import { effect } from "@preact/signals-core";
+import { effect, untracked } from "@preact/signals-core";
 import { render } from "lit-html";
 
+type MountCallback = () => void | (() => void);
+type UnmountCallback = () => void;
+
+export type EnhanceContext<T extends HTMLElement = HTMLElement> = {
+  element: T;
+  mount: (callback: MountCallback) => void;
+  unmount: (callback: UnmountCallback) => void;
+};
+
 type EffectCallback<T extends HTMLElement = HTMLElement> = (
-  element: T,
+  context: EnhanceContext<T>,
 ) => unknown | void;
 
 type MountedInstance = {
@@ -20,18 +29,42 @@ function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
     existing.dispose();
   }
 
+  const unmountCallbacks: UnmountCallback[] = [];
+  let hooksLocked = false;
+
+  const context: EnhanceContext<T> = {
+    element: el,
+    mount: (callback) => {
+      if (hooksLocked) return;
+      const cleanup = untracked(callback);
+      if (typeof cleanup === "function") {
+        unmountCallbacks.push(cleanup);
+      }
+    },
+    unmount: (callback) => {
+      if (hooksLocked) return;
+      unmountCallbacks.push(callback);
+    },
+  };
+
   const instance: MountedInstance = {
     dispose: () => {},
   };
   const dispose = effect(() => {
-    const result = fn(el);
+    const result = fn(context);
+    hooksLocked = true;
 
     if (result !== undefined) {
       render(result, el);
     }
   });
 
-  instance.dispose = dispose;
+  instance.dispose = () => {
+    dispose();
+    for (const callback of unmountCallbacks) {
+      callback();
+    }
+  };
   mounted.set(el, instance);
 }
 
@@ -90,7 +123,11 @@ function ensureObserver() {
  * sync as the DOM changes.
  *
  * `fn` reruns whenever any signal read inside it changes.
- * `fn` receives the matched DOM element as its first argument.
+ * `fn` receives a context object:
+ * - `element`: the matched DOM element.
+ * - `mount(callback)`: run setup once for this element (outside tracking);
+ *   if the callback returns a disposer, it runs on unmount.
+ * - `unmount(callback)`: register teardown to run on unmount.
  *
  * If `fn` returns a non-`undefined` value, it is rendered into the element via
  * `lit-html`.
