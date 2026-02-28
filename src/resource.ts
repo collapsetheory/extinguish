@@ -13,7 +13,7 @@ type CreateResourceOptions<T> = {
  * pending status, and error.
  */
 export type Resource<T> = {
-  value: Signal<T | undefined>;
+  data: Signal<T | undefined>;
   pending: Signal<boolean>;
   error: Signal<unknown>;
   run: () => Promise<T | undefined>;
@@ -45,7 +45,7 @@ export function resource<T>(
     try {
       const result = await loader();
       if (currentId !== requestId) return undefined;
-      value.value = result;
+      data.value = result;
       return result;
     } catch (caught) {
       if (currentId !== requestId) return undefined;
