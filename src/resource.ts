@@ -28,41 +28,42 @@ export type Resource<T> = {
  */
 export function resource<T>(
   loader: Loader<T>,
-  options: CreateResourceOptions<T> = {},
+  { initialValue }: CreateResourceOptions<T> = {},
 ): Resource<T> {
-  const data = signal<T | undefined>(options.initialValue);
+  const data = signal<T | undefined>(initialValue);
   const pending = signal(false);
   const error = signal<unknown>(null);
 
   let requestId = 0;
 
   const run = async () => {
-    requestId++;
-    const currentId = requestId;
+    const currentId = ++requestId;
     pending.value = true;
     error.value = null;
 
     try {
       const result = await loader();
-      if (currentId !== requestId) return undefined;
-      data.value = result;
-      return result;
+      if (currentId === requestId) {
+        data.value = result;
+        return result;
+      }
     } catch (caught) {
-      if (currentId !== requestId) return undefined;
-      error.value = caught;
-      return undefined;
+      if (currentId === requestId) {
+        error.value = caught;
+      }
     } finally {
-      if (currentId === requestId) pending.value = false;
+      if (currentId === requestId) {
+        pending.value = false;
+      }
     }
+    return undefined;
   };
-
-  const reload = () => run();
 
   return {
     data,
     pending,
     error,
     run,
-    reload,
+    reload: run,
   };
 }

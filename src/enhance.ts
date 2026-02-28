@@ -5,63 +5,49 @@ type MountCallback = () => void | (() => void);
 type CleanupCallback = () => void;
 
 type HookRuntime = {
-  hooksLocked: boolean;
-  cleanupCallbacks: CleanupCallback[];
+  locked: boolean;
+  cleanups: CleanupCallback[];
 };
 
 type EffectCallback<T extends HTMLElement = HTMLElement> = (
   element: T,
 ) => unknown | void;
 
-type MountedInstance = {
-  dispose: () => void;
-};
-
 const registry = new Map<string, EffectCallback<HTMLElement>>();
-const mounted = new WeakMap<HTMLElement, MountedInstance>();
-const hookRuntimeStack: HookRuntime[] = [];
+const mounted = new WeakMap<HTMLElement, () => void>();
+let currentHookRuntime: HookRuntime | undefined;
 let observer: MutationObserver | undefined;
 
-function getHookRuntime() {
-  const runtime = hookRuntimeStack[hookRuntimeStack.length - 1];
+export function mount(callback: MountCallback) {
+  const runtime = currentHookRuntime;
   if (!runtime) {
-    throw new Error("onMount/onUnmount can only be called inside enhance().");
+    throw new Error("mount can only be called inside enhance().");
   }
-  return runtime;
-}
-
-export function onMount(callback: MountCallback) {
-  const runtime = getHookRuntime();
-  if (runtime.hooksLocked) return;
+  if (runtime.locked) return;
   const cleanup = untracked(callback);
   if (typeof cleanup === "function") {
-    runtime.cleanupCallbacks.push(cleanup);
+    runtime.cleanups.push(cleanup);
   }
 }
 
-function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
+function mountElement<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
   if (!el) return;
-  const existing = mounted.get(el);
-  if (existing) {
-    existing.dispose();
-  }
+  mounted.get(el)?.();
 
   const runtime: HookRuntime = {
-    hooksLocked: false,
-    cleanupCallbacks: [],
+    locked: false,
+    cleanups: [],
   };
 
-  const instance: MountedInstance = {
-    dispose: () => {},
-  };
-  const dispose = effect(() => {
-    hookRuntimeStack.push(runtime);
+  const stop = effect(() => {
+    const previousRuntime = currentHookRuntime;
+    currentHookRuntime = runtime;
     let result: unknown | void;
     try {
       result = fn(el);
     } finally {
-      hookRuntimeStack.pop();
-      runtime.hooksLocked = true;
+      currentHookRuntime = previousRuntime;
+      runtime.locked = true;
     }
 
     if (result !== undefined) {
@@ -69,20 +55,19 @@ function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
     }
   });
 
-  instance.dispose = () => {
-    dispose();
-    for (const callback of runtime.cleanupCallbacks) {
+  mounted.set(el, () => {
+    stop();
+    for (const callback of runtime.cleanups) {
       callback();
     }
-  };
-  mounted.set(el, instance);
+  });
 }
 
 function unmount(el: HTMLElement | null) {
   if (!el) return;
-  const instance = mounted.get(el);
-  if (!instance) return;
-  instance.dispose();
+  const dispose = mounted.get(el);
+  if (!dispose) return;
+  dispose();
   mounted.delete(el);
   render(null, el);
 }
@@ -117,7 +102,7 @@ function ensureObserver() {
         walk(node, (el) => {
           registry.forEach((fn, className) => {
             if (!el.classList.contains(className)) return;
-            mount(el, fn);
+            mountElement(el, fn);
           });
         })
       );
@@ -135,7 +120,7 @@ function ensureObserver() {
  * `fn` reruns whenever any signal read inside it changes.
  * `fn` receives the matched DOM element as its first argument.
  *
- * Use `onMount(callback)` inside `fn` to run setup once per element outside
+ * Use `mount(callback)` inside `fn` to run setup once per element outside
  * reactive tracking. If `callback` returns a function, it runs on unmount.
  *
  * If `fn` returns a non-`undefined` value, it is rendered into the element via
@@ -149,7 +134,7 @@ export function enhance<T extends HTMLElement = HTMLElement>(
   fn: EffectCallback<T>,
 ): () => void {
   registry.set(className, fn as EffectCallback<HTMLElement>);
-  forEachByClassName(className, (el) => mount(el as T, fn));
+  forEachByClassName(className, (el) => mountElement(el as T, fn));
   ensureObserver();
 
   return () => {

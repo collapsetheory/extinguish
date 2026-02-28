@@ -14,23 +14,25 @@ type BoundaryOptions = {
  * The returned function preserves sync/async behavior of `component`.
  */
 export function boundary(options: BoundaryOptions): BoundaryRenderer {
-  const resolve = (error: unknown) => {
-    options.onError?.(error);
-    if (typeof options.error === "function") {
-      return (options.error as BoundaryErrorRenderer)(error);
-    }
-    return options.error;
+  const { component, error, onError } = options;
+  const renderError: BoundaryErrorRenderer = typeof error === "function"
+    ? error as BoundaryErrorRenderer
+    : () => error;
+
+  const resolve = (caught: unknown) => {
+    onError?.(caught);
+    return renderError(caught);
   };
 
   return () => {
     try {
-      const result = options.component();
+      const result = component();
       if (result instanceof Promise) {
-        return result.catch((error) => resolve(error));
+        return result.catch(resolve);
       }
       return result;
-    } catch (error) {
-      return resolve(error);
+    } catch (caught) {
+      return resolve(caught);
     }
   };
 }
