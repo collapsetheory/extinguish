@@ -30,7 +30,7 @@ export function resource<T>(
   loader: Loader<T>,
   options: CreateResourceOptions<T> = {},
 ): Resource<T> {
-  const value = signal<T | undefined>(options.initialValue);
+  const data = signal<T | undefined>(options.initialValue);
   const pending = signal(false);
   const error = signal<unknown>(null);
 
@@ -59,7 +59,7 @@ export function resource<T>(
   const reload = () => run();
 
   return {
-    value,
+    data,
     pending,
     error,
     run,
