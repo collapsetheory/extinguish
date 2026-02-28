@@ -2,36 +2,44 @@ import { effect } from "@preact/signals-core";
 import { render } from "lit-html";
 
 type EffectCallback<T extends HTMLElement = HTMLElement> = (
-  this: T,
   element: T,
 ) => unknown | void;
 
+type MountedInstance = {
+  dispose: () => void;
+};
+
 const registry = new Map<string, EffectCallback<HTMLElement>>();
-const mounted = new WeakMap<HTMLElement, () => void>();
+const mounted = new WeakMap<HTMLElement, MountedInstance>();
 let observer: MutationObserver | undefined;
 
 function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
   if (!el) return;
   const existing = mounted.get(el);
   if (existing) {
-    existing();
+    existing.dispose();
   }
 
+  const instance: MountedInstance = {
+    dispose: () => {},
+  };
   const dispose = effect(() => {
-    const result = fn.call(el, el);
+    const result = fn(el);
+
     if (result !== undefined) {
       render(result, el);
     }
   });
 
-  mounted.set(el, dispose);
+  instance.dispose = dispose;
+  mounted.set(el, instance);
 }
 
 function unmount(el: HTMLElement | null) {
   if (!el) return;
-  const dispose = mounted.get(el);
-  if (!dispose) return;
-  dispose();
+  const instance = mounted.get(el);
+  if (!instance) return;
+  instance.dispose();
   mounted.delete(el);
   render(null, el);
 }
@@ -82,7 +90,7 @@ function ensureObserver() {
  * sync as the DOM changes.
  *
  * `fn` reruns whenever any signal read inside it changes.
- * `fn` executes with `this === el` and also receives `el` as first argument.
+ * `fn` receives the matched DOM element as its first argument.
  *
  * If `fn` returns a non-`undefined` value, it is rendered into the element via
  * `lit-html`.
