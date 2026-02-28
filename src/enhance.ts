@@ -2,16 +2,15 @@ import { effect, untracked } from "@preact/signals-core";
 import { render } from "lit-html";
 
 type MountCallback = () => void | (() => void);
-type UnmountCallback = () => void;
+type CleanupCallback = () => void;
 
-export type EnhanceContext<T extends HTMLElement = HTMLElement> = {
-  element: T;
-  mount: (callback: MountCallback) => void;
-  unmount: (callback: UnmountCallback) => void;
+type HookRuntime = {
+  hooksLocked: boolean;
+  cleanupCallbacks: CleanupCallback[];
 };
 
 type EffectCallback<T extends HTMLElement = HTMLElement> = (
-  context: EnhanceContext<T>,
+  element: T,
 ) => unknown | void;
 
 type MountedInstance = {
@@ -20,7 +19,25 @@ type MountedInstance = {
 
 const registry = new Map<string, EffectCallback<HTMLElement>>();
 const mounted = new WeakMap<HTMLElement, MountedInstance>();
+const hookRuntimeStack: HookRuntime[] = [];
 let observer: MutationObserver | undefined;
+
+function getHookRuntime() {
+  const runtime = hookRuntimeStack[hookRuntimeStack.length - 1];
+  if (!runtime) {
+    throw new Error("onMount/onUnmount can only be called inside enhance().");
+  }
+  return runtime;
+}
+
+export function onMount(callback: MountCallback) {
+  const runtime = getHookRuntime();
+  if (runtime.hooksLocked) return;
+  const cleanup = untracked(callback);
+  if (typeof cleanup === "function") {
+    runtime.cleanupCallbacks.push(cleanup);
+  }
+}
 
 function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
   if (!el) return;
@@ -29,30 +46,23 @@ function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
     existing.dispose();
   }
 
-  const unmountCallbacks: UnmountCallback[] = [];
-  let hooksLocked = false;
-
-  const context: EnhanceContext<T> = {
-    element: el,
-    mount: (callback) => {
-      if (hooksLocked) return;
-      const cleanup = untracked(callback);
-      if (typeof cleanup === "function") {
-        unmountCallbacks.push(cleanup);
-      }
-    },
-    unmount: (callback) => {
-      if (hooksLocked) return;
-      unmountCallbacks.push(callback);
-    },
+  const runtime: HookRuntime = {
+    hooksLocked: false,
+    cleanupCallbacks: [],
   };
 
   const instance: MountedInstance = {
     dispose: () => {},
   };
   const dispose = effect(() => {
-    const result = fn(context);
-    hooksLocked = true;
+    hookRuntimeStack.push(runtime);
+    let result: unknown | void;
+    try {
+      result = fn(el);
+    } finally {
+      hookRuntimeStack.pop();
+      runtime.hooksLocked = true;
+    }
 
     if (result !== undefined) {
       render(result, el);
@@ -61,7 +71,7 @@ function mount<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
 
   instance.dispose = () => {
     dispose();
-    for (const callback of unmountCallbacks) {
+    for (const callback of runtime.cleanupCallbacks) {
       callback();
     }
   };
@@ -123,11 +133,10 @@ function ensureObserver() {
  * sync as the DOM changes.
  *
  * `fn` reruns whenever any signal read inside it changes.
- * `fn` receives a context object:
- * - `element`: the matched DOM element.
- * - `mount(callback)`: run setup once for this element (outside tracking);
- *   if the callback returns a disposer, it runs on unmount.
- * - `unmount(callback)`: register teardown to run on unmount.
+ * `fn` receives the matched DOM element as its first argument.
+ *
+ * Use `onMount(callback)` inside `fn` to run setup once per element outside
+ * reactive tracking. If `callback` returns a function, it runs on unmount.
  *
  * If `fn` returns a non-`undefined` value, it is rendered into the element via
  * `lit-html`.
