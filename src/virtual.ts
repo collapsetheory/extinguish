@@ -2,6 +2,11 @@ import { effect } from "@preact/signals-core";
 import { nothing } from "lit-html";
 import { AsyncDirective } from "lit-html/async-directive.js";
 import { directive, PartType } from "lit-html/directive.js";
+import {
+  cleanupMountRuntime,
+  createMountRuntime,
+  withMountRuntime,
+} from "./mount.ts";
 
 export type Attributes = Record<string, unknown>;
 type VirtualRenderer<T extends Attributes> = (props: T) => unknown | void;
@@ -23,6 +28,7 @@ export function virtual<T extends Attributes>(
     class VirtualDirective extends AsyncDirective {
       #dispose?: () => void;
       #props?: T;
+      #runtime = createMountRuntime();
 
       constructor(partInfo: ConstructorParameters<typeof AsyncDirective>[0]) {
         super(partInfo);
@@ -40,9 +46,11 @@ export function virtual<T extends Attributes>(
       override disconnected() {
         this.#dispose?.();
         this.#dispose = undefined;
+        cleanupMountRuntime(this.#runtime);
       }
 
       override reconnected() {
+        this.#runtime = createMountRuntime();
         this.#restart();
       }
 
@@ -50,7 +58,10 @@ export function virtual<T extends Attributes>(
         if (!this.#props) return;
         this.#dispose?.();
         this.#dispose = effect(() => {
-          const result = renderer(this.#props as T);
+          const result = withMountRuntime(
+            this.#runtime,
+            () => renderer(this.#props as T),
+          );
           this.setValue(result === undefined ? nothing : result);
         });
       }

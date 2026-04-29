@@ -183,6 +183,8 @@ function virtual<T extends Record<string, unknown>>(
 - Only valid in child-part expressions.
 - Throws if used in attribute/property/event part positions.
 - Cleans up effect on disconnect and restarts on reconnect.
+- Supports `mount(callback)` inside the renderer for setup that should run once
+  per directive connection.
 
 ## `enhance(className, fn)`
 
@@ -205,6 +207,12 @@ function enhance(
 - Tracks added/removed nodes with matching classes and mounts/unmounts
   automatically.
 - Returns disposer that unregisters and unmounts currently matched elements.
+
+## `mount(callback)`
+
+Runs setup once inside an `enhance()` callback or `virtual()` renderer. If
+`callback` returns a function, that cleanup runs when the enhanced element
+unmounts or the virtual directive disconnects.
 
 ## `transition(callback, timeoutMs?)` and `pending`
 

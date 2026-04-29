@@ -1,13 +1,11 @@
-import { effect, untracked } from "@preact/signals-core";
+import { effect } from "@preact/signals-core";
 import { render } from "lit-html";
-
-type MountCallback = () => void | (() => void);
-type CleanupCallback = () => void;
-
-type HookRuntime = {
-  locked: boolean;
-  cleanups: CleanupCallback[];
-};
+import {
+  cleanupMountRuntime,
+  createMountRuntime,
+  withMountRuntime,
+} from "./mount.ts";
+export { mount } from "./mount.ts";
 
 type EffectCallback<T extends HTMLElement = HTMLElement> = (
   element: T,
@@ -15,40 +13,19 @@ type EffectCallback<T extends HTMLElement = HTMLElement> = (
 
 const registry = new Map<string, EffectCallback<HTMLElement>>();
 const mounted = new WeakMap<HTMLElement, () => void>();
-let currentHookRuntime: HookRuntime | undefined;
 let observer: MutationObserver | undefined;
 
-export function mount(callback: MountCallback) {
-  const runtime = currentHookRuntime;
-  if (!runtime) {
-    throw new Error("mount can only be called inside enhance().");
-  }
-  if (runtime.locked) return;
-  const cleanup = untracked(callback);
-  if (typeof cleanup === "function") {
-    runtime.cleanups.push(cleanup);
-  }
-}
-
-function mountElement<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>) {
+function mountElement<T extends HTMLElement>(
+  el: T | null,
+  fn: EffectCallback<T>,
+) {
   if (!el) return;
   mounted.get(el)?.();
 
-  const runtime: HookRuntime = {
-    locked: false,
-    cleanups: [],
-  };
+  const runtime = createMountRuntime();
 
   const stop = effect(() => {
-    const previousRuntime = currentHookRuntime;
-    currentHookRuntime = runtime;
-    let result: unknown | void;
-    try {
-      result = fn(el);
-    } finally {
-      currentHookRuntime = previousRuntime;
-      runtime.locked = true;
-    }
+    const result = withMountRuntime(runtime, () => fn(el));
 
     if (result !== undefined) {
       render(result, el);
@@ -57,9 +34,7 @@ function mountElement<T extends HTMLElement>(el: T | null, fn: EffectCallback<T>
 
   mounted.set(el, () => {
     stop();
-    for (const callback of runtime.cleanups) {
-      callback();
-    }
+    cleanupMountRuntime(runtime);
   });
 }
 
