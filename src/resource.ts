@@ -2,17 +2,10 @@ import { type Signal, signal } from "@preact/signals-core";
 
 type LoaderArgs = readonly unknown[];
 type Loader<T, Args extends LoaderArgs = []> = (...args: Args) => Promise<T>;
-
 type CreateResourceOptions<T> = {
   initialValue?: T;
 };
 
-/**
- * Reactive async resource state.
- *
- * `run()` and `reload()` execute the loader. Signals expose latest value,
- * pending status, and error.
- */
 export type Resource<T, Args extends LoaderArgs = []> = {
   data: Signal<T | undefined>;
   pending: Signal<boolean>;
@@ -21,12 +14,6 @@ export type Resource<T, Args extends LoaderArgs = []> = {
   reload: (...args: Args) => Promise<T | undefined>;
 };
 
-/**
- * Creates a resource with last-write-wins semantics.
- *
- * If multiple runs overlap, only the most recent invocation is allowed to
- * update state.
- */
 export function resource<T, Args extends LoaderArgs = []>(
   loader: Loader<T, Args>,
   { initialValue }: CreateResourceOptions<T> = {},
@@ -60,11 +47,5 @@ export function resource<T, Args extends LoaderArgs = []>(
     return undefined;
   };
 
-  return {
-    data,
-    pending,
-    error,
-    run,
-    reload: run,
-  };
+  return { data, pending, error, run, reload: run };
 }

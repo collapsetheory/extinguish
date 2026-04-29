@@ -7,18 +7,9 @@ type IdleLikeWindow = Window & {
   ) => number;
 };
 
-/**
- * Indicates whether any scheduled transitions are still in flight.
- */
 export const pending: Signal<boolean> = signal(false);
 let pendingCount = 0;
 
-/**
- * Schedules a batched callback for idle time.
- *
- * Uses `requestIdleCallback` when available and falls back to `setTimeout`.
- * `pending` stays true while one or more transitions are outstanding.
- */
 export function transition(
   callback: () => void,
   timeoutMs: number = 120,

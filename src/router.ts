@@ -5,18 +5,12 @@ import {
   signal,
 } from "@preact/signals-core";
 
-/**
- * Route entry used by the matcher and runtime router.
- */
 export type RouteDefinition<TMeta = unknown> = {
   name: string;
   pattern: string;
   meta?: TMeta;
 };
 
-/**
- * A successful result of matching a pathname against route definitions.
- */
 export type RouteMatch<TMeta = unknown> = {
   name: string;
   pattern: string;
@@ -35,9 +29,6 @@ type NavigateOptions = {
 };
 
 const routes: Signal<RouteDefinition[]> = signal<RouteDefinition[]>([]);
-/**
- * Current browser pathname as a signal.
- */
 export const pathname: Signal<string> = signal(
   getBrowserWindow()?.location.pathname ?? "/",
 );
@@ -68,18 +59,10 @@ export function defineRoute<TMeta = unknown>(
   return { name, pattern, meta };
 }
 
-/**
- * Replaces the route table used by {@link currentRoute}.
- */
 export function setRoutes(definitions: RouteDefinition[]): void {
   routes.value = definitions;
 }
 
-/**
- * Matches a path against route definitions.
- *
- * Supports parameter segments like `/posts/:id`.
- */
 export function matchPath(
   path: string,
   definitions: RouteDefinition[],
@@ -121,9 +104,6 @@ export function matchPath(
   return null;
 }
 
-/**
- * Computed route match for the current `pathname`.
- */
 export const currentRoute: ReadonlySignal<RouteMatch | null> = computed(() =>
   matchPath(pathname.value, routes.value)
 );
@@ -162,11 +142,6 @@ function canInterceptClick(
   return true;
 }
 
-/**
- * Navigates to a new path using history state APIs.
- *
- * No-op when no browser globals are available.
- */
 export function navigate(to: string, options: NavigateOptions = {}): void {
   const scope = getBrowserWindow();
   if (!scope) return;
@@ -178,11 +153,6 @@ export function navigate(to: string, options: NavigateOptions = {}): void {
   pathname.value = nextPath;
 }
 
-/**
- * Starts browser router listeners and returns a cleanup disposer.
- *
- * When already started, returns the existing disposer.
- */
 export function startRouter(options: StartOptions = {}): () => void {
   const scope = getBrowserWindow();
   if (!scope) return () => {};

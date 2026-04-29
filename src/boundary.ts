@@ -7,12 +7,6 @@ type BoundaryOptions = {
   onError?: (error: unknown) => void;
 };
 
-/**
- * Wraps a renderer so sync throws and async rejections are mapped to a
- * fallback value.
- *
- * The returned function preserves sync/async behavior of `component`.
- */
 export function boundary(options: BoundaryOptions): BoundaryRenderer {
   const { component, error, onError } = options;
   const renderError: BoundaryErrorRenderer = typeof error === "function"

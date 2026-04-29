@@ -10,17 +10,8 @@ import {
 
 export type Attributes = Record<string, unknown>;
 type VirtualRenderer<T extends Attributes> = (props: T) => unknown | void;
-/**
- * Lit child-part directive factory returned by {@link virtual}.
- */
 export type VirtualDirective<T extends Attributes> = (props: T) => unknown;
 
-/**
- * Creates a Lit directive that reruns a renderer whenever consumed signals
- * change.
- *
- * This directive can only be used in child expressions.
- */
 export function virtual<T extends Attributes>(
   renderer: VirtualRenderer<T>,
 ): VirtualDirective<T> {
@@ -40,7 +31,10 @@ export function virtual<T extends Attributes>(
       render(props: T) {
         this.#props = props;
         this.#restart();
-        return nothing;
+        return withMountRuntime(
+          this.#runtime,
+          () => renderer(this.#props as T),
+        );
       }
 
       override disconnected() {

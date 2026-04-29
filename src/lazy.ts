@@ -9,12 +9,6 @@ type LazyOptions = {
   loading?: unknown;
 };
 
-/**
- * Creates a renderer that lazy-loads its implementation module on first use.
- *
- * While loading, it returns `options.loading`. If load fails, subsequent calls
- * throw the cached error.
- */
 export function lazy<T extends Attributes>(
   loader: LazyLoader<T>,
   options: LazyOptions = {},

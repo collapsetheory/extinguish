@@ -88,22 +88,6 @@ function ensureObserver() {
   observer.observe(document, { childList: true, subtree: true });
 }
 
-/**
- * Attaches a reactive effect to all elements with a class and keeps mounts in
- * sync as the DOM changes.
- *
- * `fn` reruns whenever any signal read inside it changes.
- * `fn` receives the matched DOM element as its first argument.
- *
- * Use `mount(callback)` inside `fn` to run setup once per element outside
- * reactive tracking. If `callback` returns a function, it runs on unmount.
- *
- * If `fn` returns a non-`undefined` value, it is rendered into the element via
- * `lit-html`.
- *
- * Returns a disposer that unregisters and unmounts all currently matched
- * elements.
- */
 export function enhance<T extends HTMLElement = HTMLElement>(
   className: string,
   fn: EffectCallback<T>,
